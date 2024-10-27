@@ -38,10 +38,14 @@ func CreateMessage(w http.ResponseWriter, r *http.Request) {
 
 	msg.IsPalindrome = utils.IsPalindrome(msg.Content)
 
-	err = DB.QueryRow(
-		"INSERT INTO messages (content, is_palindrome) VALUES ($1, $2) RETURNING id",
-		msg.Content, msg.IsPalindrome).Scan(&msg.ID)
+	query := `
+        INSERT INTO messages (content, is_palindrome)
+        VALUES ($1, $2)
+        RETURNING id, created_at, updated_at
+    `
 
+	err = DB.QueryRow(query, msg.Content, msg.IsPalindrome).
+		Scan(&msg.ID, &msg.CreatedAt, &msg.UpdatedAt)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -62,7 +66,15 @@ func GetMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var msg Message
-	err = DB.QueryRow("SELECT id, content, is_palindrome FROM messages WHERE id = $1", id).Scan(&msg.ID, &msg.Content, &msg.IsPalindrome)
+
+	query := `
+        SELECT id, content, is_palindrome, created_at, updated_at 
+		FROM messages 
+		WHERE id = $1
+    `
+
+	err = DB.QueryRow(query, id).
+		Scan(&msg.ID, &msg.Content, &msg.IsPalindrome, &msg.CreatedAt, &msg.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Message not found", http.StatusNotFound)
@@ -111,20 +123,21 @@ func UpdateMessage(w http.ResponseWriter, r *http.Request) {
 
 	msg.IsPalindrome = utils.IsPalindrome(msg.Content)
 
-	result, err := DB.Exec("UPDATE messages SET content = $1, is_palindrome = $2 WHERE id = $3", msg.Content, msg.IsPalindrome, id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	query := `
+        UPDATE messages
+        SET content = $1, is_palindrome = $2, updated_at = NOW()
+        WHERE id = $3
+        RETURNING created_at, updated_at
+    `
 
-	rowsAffected, err := result.RowsAffected()
+	err = DB.QueryRow(query, msg.Content, msg.IsPalindrome, id).
+		Scan(&msg.CreatedAt, &msg.UpdatedAt)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if rowsAffected == 0 {
-		http.Error(w, "Message not found", http.StatusNotFound)
+		if err == sql.ErrNoRows {
+			http.Error(w, "Message not found", http.StatusNotFound)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -167,7 +180,7 @@ func DeleteMessage(w http.ResponseWriter, r *http.Request) {
 // ListMessages returns a list of messages, up to a maximum of 100.
 // TODO: Add Pagination
 func ListMessages(w http.ResponseWriter, r *http.Request) {
-	query := "SELECT id, content, is_palindrome FROM messages LIMIT 100"
+	query := "SELECT id, content, is_palindrome, created_at, updated_at FROM messages LIMIT 100"
 
 	rows, err := DB.Query(query)
 	if err != nil {
@@ -179,7 +192,7 @@ func ListMessages(w http.ResponseWriter, r *http.Request) {
 	var messages []Message
 	for rows.Next() {
 		var msg Message
-		err := rows.Scan(&msg.ID, &msg.Content, &msg.IsPalindrome)
+		err := rows.Scan(&msg.ID, &msg.Content, &msg.IsPalindrome, &msg.CreatedAt, &msg.UpdatedAt)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
