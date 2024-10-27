@@ -163,3 +163,35 @@ func DeleteMessage(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// ListMessages returns a list of messages, up to a maximum of 100.
+// TODO: Add Pagination
+func ListMessages(w http.ResponseWriter, r *http.Request) {
+	query := "SELECT id, content, is_palindrome FROM messages LIMIT 100"
+
+	rows, err := DB.Query(query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var messages []Message
+	for rows.Next() {
+		var msg Message
+		err := rows.Scan(&msg.ID, &msg.Content, &msg.IsPalindrome)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		messages = append(messages, msg)
+	}
+
+	if err = rows.Err(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(messages)
+}
