@@ -75,3 +75,61 @@ func GetMessage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(msg)
 }
+
+// UpdateMessage updates an existing message by its ID.
+func UpdateMessage(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("Content-Type") != "application/json" {
+		http.Error(w, "Content-Type must be application/json", http.StatusUnsupportedMediaType)
+		return
+	}
+
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid message ID", http.StatusBadRequest)
+		return
+	}
+
+	var msg Message
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = json.Unmarshal(body, &msg)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if len(msg.Content) > 1000 {
+		http.Error(w, "Message content exceeds 1000 characters", http.StatusBadRequest)
+		return
+	}
+
+	msg.IsPalindrome = utils.IsPalindrome(msg.Content)
+
+	result, err := DB.Exec("UPDATE messages SET content = $1, is_palindrome = $2 WHERE id = $3", msg.Content, msg.IsPalindrome, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if rowsAffected == 0 {
+		http.Error(w, "Message not found", http.StatusNotFound)
+		return
+	}
+
+	msg.ID = id
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(msg)
+}
