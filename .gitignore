@@ -1,0 +1,21 @@
+# Binaries
+messages-service
+*.exe
+*.out
+
+# Vendor directories
+vendor/
+
+# IDE/editor files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test binaries
+*.test
