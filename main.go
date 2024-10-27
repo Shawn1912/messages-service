@@ -14,7 +14,7 @@ func main() {
 
 	router.HandleFunc("/messages", CreateMessage).Methods("POST")
 	router.HandleFunc("/messages/{id:[0-9]+}", GetMessage).Methods("GET")
-	router.HandleFunc("/messages/{id:[0-9]+}", UpdateMessage).Methods("PUT")
+	router.HandleFunc("/messages/{id:[0-9]+}", UpdateMessage).Methods("PATCH")
 	router.HandleFunc("/messages/{id:[0-9]+}", DeleteMessage).Methods("DELETE")
 	router.HandleFunc("/messages", ListMessages).Methods("GET")
 

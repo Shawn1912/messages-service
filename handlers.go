@@ -103,35 +103,10 @@ func UpdateMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var msg Message
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	err = json.Unmarshal(body, &msg)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if len(msg.Content) > 1000 {
-		http.Error(w, "Message content exceeds 1000 characters", http.StatusBadRequest)
-		return
-	}
-
-	msg.IsPalindrome = utils.IsPalindrome(msg.Content)
-
-	query := `
-        UPDATE messages
-        SET content = $1, is_palindrome = $2, updated_at = NOW()
-        WHERE id = $3
-        RETURNING created_at, updated_at
-    `
-
-	err = DB.QueryRow(query, msg.Content, msg.IsPalindrome, id).
-		Scan(&msg.CreatedAt, &msg.UpdatedAt)
+	// Retrieve existing message from the database
+	var existingMsg Message
+	err = DB.QueryRow("SELECT id, content, is_palindrome, created_at, updated_at FROM messages WHERE id = $1", id).
+		Scan(&existingMsg.ID, &existingMsg.Content, &existingMsg.IsPalindrome, &existingMsg.CreatedAt, &existingMsg.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Message not found", http.StatusNotFound)
@@ -141,10 +116,44 @@ func UpdateMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg.ID = id
+	// Read and parse the request body
+	var msgUpdates struct {
+		Content *string `json:"text"`
+	}
+	err = json.NewDecoder(r.Body).Decode(&msgUpdates)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
+	// Update fields if they are provided
+	if msgUpdates.Content != nil {
+		if len(*msgUpdates.Content) > 1000 {
+			http.Error(w, "Message content exceeds 1000 characters", http.StatusBadRequest)
+			return
+		}
+		existingMsg.Content = *msgUpdates.Content
+		existingMsg.IsPalindrome = utils.IsPalindrome(existingMsg.Content)
+	}
+
+	// Update the message in the database
+	query := `
+        UPDATE messages
+        SET content = $1, is_palindrome = $2, updated_at = NOW()
+        WHERE id = $3
+        RETURNING created_at, updated_at
+    `
+
+	err = DB.QueryRow(query, existingMsg.Content, existingMsg.IsPalindrome, id).
+		Scan(&existingMsg.CreatedAt, &existingMsg.UpdatedAt)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with the updated message
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(msg)
+	json.NewEncoder(w).Encode(existingMsg)
 }
 
 // DeleteMessage deletes a message by its ID.
