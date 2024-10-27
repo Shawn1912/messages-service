@@ -1,10 +1,13 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 
+	"github.com/gorilla/mux"
 	"github.com/shawn1912/messages-service/utils"
 )
 
@@ -45,5 +48,30 @@ func CreateMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(msg)
+}
+
+// GetMessage retrieves a message by its ID.
+func GetMessage(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid message ID", http.StatusBadRequest)
+		return
+	}
+
+	var msg Message
+	err = DB.QueryRow("SELECT id, content, is_palindrome FROM messages WHERE id = $1", id).Scan(&msg.ID, &msg.Content, &msg.IsPalindrome)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Message not found", http.StatusNotFound)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(msg)
 }
