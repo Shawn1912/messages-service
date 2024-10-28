@@ -29,9 +29,3 @@ clean:
 # Build Docker image
 build-docker:
 	docker build -t messages-service:latest .
-
-# Deploy to Kubernetes
-deploy: build-docker
-	kubectl apply -f db-secret.yaml
-	kubectl apply -f postgres-deployment.yaml
-	kubectl apply -f deployment.yaml
