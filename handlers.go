@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -207,10 +208,10 @@ func ListMessages(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if parsedLimit > maxLimit {
-			limit = maxLimit
-		} else {
-			limit = parsedLimit
+			http.Error(w, fmt.Sprintf("'limit' parameter cannot exceed %d", maxLimit), http.StatusBadRequest)
+			return
 		}
+		limit = parsedLimit
 	}
 
 	// Convert page to integer
