@@ -225,3 +225,142 @@ func TestListMessages(t *testing.T) {
 		t.Errorf("Expected 10 messages, got %d", len(response.Messages))
 	}
 }
+
+func TestUpdateMessage(t *testing.T) {
+	// Clean the database before the test
+	testDB.Exec("TRUNCATE TABLE messages RESTART IDENTITY CASCADE;")
+
+	// Insert a test message into the test database
+	var msgID int64
+	err := testDB.QueryRow(
+		"INSERT INTO messages (content, is_palindrome, created_at, updated_at) VALUES ($1, $2, NOW(), NOW()) RETURNING id",
+		"Hello World", false).Scan(&msgID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Prepare the request body with updated content
+	payload := map[string]string{"content": "Madam"}
+	body, _ := json.Marshal(payload)
+
+	// Create a new HTTP PATCH request to update the message
+	req, err := http.NewRequest("PATCH", "/messages/"+strconv.FormatInt(msgID, 10), bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// Use httptest to record the response
+	rr := httptest.NewRecorder()
+
+	// Set up the router and handler
+	router := mux.NewRouter()
+	router.HandleFunc("/messages/{id:[0-9]+}", UpdateMessage).Methods("PATCH")
+
+	// Assign the test database to the global DB variable
+	DB = testDB
+
+	// Call the handler
+	router.ServeHTTP(rr, req)
+
+	// Check the response status code
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, status)
+	}
+
+	// Decode the response body
+	var respMsg Message
+	err = json.Unmarshal(rr.Body.Bytes(), &respMsg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Validate the response
+	if respMsg.ID != msgID {
+		t.Errorf("Expected ID %d, got %d", msgID, respMsg.ID)
+	}
+	if respMsg.Content != "Madam" {
+		t.Errorf("Expected content 'Madam', got '%s'", respMsg.Content)
+	}
+	if !respMsg.IsPalindrome {
+		t.Error("Expected IsPalindrome to be true")
+	}
+
+	// Verify that the message was updated in the database
+	var updatedContent string
+	var isPalindrome bool
+	err = testDB.QueryRow(
+		"SELECT content, is_palindrome FROM messages WHERE id = $1", msgID).
+		Scan(&updatedContent, &isPalindrome)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updatedContent != "Madam" {
+		t.Errorf("Database content mismatch: expected 'Madam', got '%s'", updatedContent)
+	}
+	if !isPalindrome {
+		t.Error("Database IsPalindrome mismatch: expected true, got false")
+	}
+}
+
+func TestDeleteMessage(t *testing.T) {
+	// Clean the database before the test
+	testDB.Exec("TRUNCATE TABLE messages RESTART IDENTITY CASCADE;")
+
+	// Insert a test message into the test database
+	var msgID int64
+	err := testDB.QueryRow(
+		"INSERT INTO messages (content, is_palindrome, created_at, updated_at) VALUES ($1, $2, NOW(), NOW()) RETURNING id",
+		"Test Message", false).Scan(&msgID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a new HTTP DELETE request to delete the message
+	req, err := http.NewRequest("DELETE", "/messages/"+strconv.FormatInt(msgID, 10), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Use httptest to record the response
+	rr := httptest.NewRecorder()
+
+	// Set up the router and handler
+	router := mux.NewRouter()
+	router.HandleFunc("/messages/{id:[0-9]+}", DeleteMessage).Methods("DELETE")
+
+	// Assign the test database to the global DB variable
+	DB = testDB
+
+	// Call the handler
+	router.ServeHTTP(rr, req)
+
+	// Check the response status code
+	if status := rr.Code; status != http.StatusNoContent {
+		t.Errorf("Expected status code %d, got %d", http.StatusNoContent, status)
+	}
+
+	// Verify that the message was deleted from the database
+	var count int
+	err = testDB.QueryRow("SELECT COUNT(*) FROM messages WHERE id = $1", msgID).Scan(&count)
+	if err != nil && err != sql.ErrNoRows {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Errorf("Expected message to be deleted, but found %d record(s)", count)
+	}
+
+	// Attempt to retrieve the deleted message
+	getReq, err := http.NewRequest("GET", "/messages/"+strconv.FormatInt(msgID, 10), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	getRR := httptest.NewRecorder()
+	router.HandleFunc("/messages/{id:[0-9]+}", GetMessage).Methods("GET")
+	router.ServeHTTP(getRR, getReq)
+
+	// Expect a 404 Not Found
+	if status := getRR.Code; status != http.StatusNotFound {
+		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, status)
+	}
+}
