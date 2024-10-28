@@ -21,7 +21,9 @@ func TestIsPalindrome(t *testing.T) {
 		{"No lemon, no melon", true},
 		{"Able was I, ere I saw Elba!", true},
 		{"Madam, in Eden, I'm Adam.", true},
-		{"!@#$", true}, // Only special characters, considered palindrome as cleaned string is empty
+		{"!@#$", true},
+		{"😊Hello😊", false},
+		{"😀😃😄😁😆😅😂🤣😅😆😁😄😃😀", true},
 	}
 
 	for _, tc := range testCases {
