@@ -2,24 +2,31 @@
 
 ## Description
 
-A simple RESTful API for managing messages and determining if they are palindromes.
+A simple Go-based microservice that provides CRUD operations for messages and includes palindrome detection functionality.
 
 ## Project Structure
 
 messages-service/ <br />
-├── main.go  <br />
-├── handlers.go  <br />
-├── models.go  <br />
-├── db_connection.go  <br />
+├── database <br /> &emsp;&emsp;
+    ├── db_connection.go <br />&emsp;&emsp;
+    ├── models.go <br />&emsp;&emsp;
+    └── schema.sql  <br />
+├── handlers <br /> &emsp;&emsp;
+    ├── handlers.go <br />&emsp;&emsp;
+    └── handlers_test.go  <br />
 ├── utils <br /> &emsp;&emsp;
-    └── palindrome.go <br />
-└── go.mod
+    ├── palindrome.go <br />&emsp;&emsp;
+    └── palindrome_test.go  <br />
+├── go.mod  <br />
+├── go.sum  <br />
+└── main.go
 
 ## Build and Run
 
 ### Prerequisites
 
-- Go 1.16+
+- Go (version 1.17 or higher)
+- Docker
 - PostgreSQL
 
 ### Steps
@@ -27,7 +34,7 @@ messages-service/ <br />
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/yourusername/messages-service.git
+   git clone https://github.com/shawn1912/messages-service.git
    cd messages-service
    ```
 
@@ -42,7 +49,7 @@ messages-service/ <br />
     ```
     Run the schema script:
     ``` bash
-    psql -U postgres -d messages -f schema.sql
+    psql -U postgres -d messages -f ./database/schema.sql
     ```
 
 3. **Run the application**
@@ -57,6 +64,24 @@ messages-service/ <br />
 - `GET /message/{id}`: Retrieve a message.
 - `PUT /message/{id}`: Update a message.
 - `DELETE /message/{id}`: Delete a message.
+
+### Example: Creating a message
+``` bash
+curl -X POST http://localhost:8080/messages \
+  -H 'Content-Type: application/json' \
+  -d '{"content": "A man a plan a canal Panama"}'
+```
+
+### Response
+``` json
+{
+  "id": 29,
+  "content": "A man a plan a canal Panama",
+  "isPalindrome": true,
+  "createdAt": "2024-10-28T12:00:00Z",
+  "updatedAt": "2024-10-28T12:00:00Z"
+}
+```
 
 ## Testing
 Run unit tests:
