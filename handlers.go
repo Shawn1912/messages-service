@@ -118,7 +118,7 @@ func UpdateMessage(w http.ResponseWriter, r *http.Request) {
 
 	// Read and parse the request body
 	var msgUpdates struct {
-		Content *string `json:"text"`
+		Content *string `json:"content"`
 	}
 	err = json.NewDecoder(r.Body).Decode(&msgUpdates)
 	if err != nil {

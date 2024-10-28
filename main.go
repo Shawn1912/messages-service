@@ -8,7 +8,8 @@ import (
 )
 
 func main() {
-	InitDB("user=postgres dbname=messages sslmode=disable")
+	// TODO: Use environment variables
+	InitDB("user=postgres password=postgres dbname=messages sslmode=disable")
 
 	router := mux.NewRouter()
 
