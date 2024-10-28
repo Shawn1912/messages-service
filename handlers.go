@@ -260,7 +260,35 @@ func ListMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Count total messages.
+	var totalMessages int
+	err = DB.QueryRow("SELECT COUNT(*) FROM messages").Scan(&totalMessages)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Calculate total pages.
+	totalPages := (totalMessages + limit - 1) / limit // Integer division rounding up
+
+	response := struct {
+		Messages   []Message `json:"messages"`
+		Pagination struct {
+			CurrentPage   int `json:"currentPage"`
+			PageSize      int `json:"pageSize"`
+			TotalPages    int `json:"totalPages"`
+			TotalMessages int `json:"totalMessages"`
+		} `json:"pagination"`
+	}{
+		Messages: messages,
+	}
+
+	response.Pagination.CurrentPage = page
+	response.Pagination.PageSize = limit
+	response.Pagination.TotalPages = totalPages
+	response.Pagination.TotalMessages = totalMessages
+
 	// Set headers and write the response
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(messages)
+	json.NewEncoder(w).Encode(response)
 }
