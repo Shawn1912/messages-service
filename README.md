@@ -4,10 +4,14 @@
 
 A simple Go-based microservice that provides CRUD operations for messages and includes palindrome detection functionality.
 
+## Architecture
+![Test Image 4](/architecture.png)
+
 ## Project Structure
 
 messages-service/ <br />
 ├── database <br /> &emsp;&emsp;
+    ├── db_connection_test.go <br />&emsp;&emsp;
     ├── db_connection.go <br />&emsp;&emsp;
     ├── models.go <br />&emsp;&emsp;
     └── schema.sql  <br />
@@ -19,7 +23,8 @@ messages-service/ <br />
     └── palindrome_test.go  <br />
 ├── go.mod  <br />
 ├── go.sum  <br />
-└── main.go
+├── main.go  <br />
+└── main_test.go
 
 ## Build and Run
 
