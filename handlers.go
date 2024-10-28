@@ -186,19 +186,65 @@ func DeleteMessage(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ListMessages returns a list of messages, up to a maximum of 100.
-// TODO: Add Pagination
+// ListMessages returns a paginated list of messages, up to a maximum of 100 per page.
 func ListMessages(w http.ResponseWriter, r *http.Request) {
-	query := "SELECT id, content, is_palindrome, created_at, updated_at FROM messages LIMIT 100"
+	// Set default values
+	const maxLimit = 100
+	defaultLimit := 10
+	defaultPage := 1
 
-	rows, err := DB.Query(query)
+	// Parse query parameters
+	queryParams := r.URL.Query()
+	limitStr := queryParams.Get("limit")
+	pageStr := queryParams.Get("page")
+
+	// Convert limit to integer
+	limit := defaultLimit
+	if limitStr != "" {
+		parsedLimit, err := strconv.Atoi(limitStr)
+		if err != nil || parsedLimit <= 0 {
+			http.Error(w, "Invalid 'limit' parameter. It must be a positive integer.", http.StatusBadRequest)
+			return
+		}
+		if parsedLimit > maxLimit {
+			limit = maxLimit
+		} else {
+			limit = parsedLimit
+		}
+	}
+
+	// Convert page to integer
+	page := defaultPage
+	if pageStr != "" {
+		parsedPage, err := strconv.Atoi(pageStr)
+		if err != nil || parsedPage <= 0 {
+			http.Error(w, "Invalid 'page' parameter. It must be a positive integer.", http.StatusBadRequest)
+			return
+		}
+		page = parsedPage
+	}
+
+	// Calculate offset
+	offset := (page - 1) * limit
+
+	// Prepare SQL query with LIMIT and OFFSET
+	query := `
+        SELECT id, content, is_palindrome, created_at, updated_at
+        FROM messages
+        ORDER BY id ASC
+        LIMIT $1 OFFSET $2
+    `
+
+	// Execute the query
+	rows, err := DB.Query(query, limit, offset)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
 
-	var messages []Message
+	// Fetch messages
+	messages := []Message{}
 	for rows.Next() {
 		var msg Message
 		err := rows.Scan(&msg.ID, &msg.Content, &msg.IsPalindrome, &msg.CreatedAt, &msg.UpdatedAt)
@@ -214,6 +260,7 @@ func ListMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set headers and write the response
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(messages)
 }
