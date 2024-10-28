@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"database/sql"
@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/shawn1912/messages-service/database"
 	"github.com/shawn1912/messages-service/utils"
 )
 
@@ -19,7 +20,7 @@ func CreateMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var msg Message
+	var msg database.Message
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -45,7 +46,7 @@ func CreateMessage(w http.ResponseWriter, r *http.Request) {
         RETURNING id, created_at, updated_at
     `
 
-	err = DB.QueryRow(query, msg.Content, msg.IsPalindrome).
+	err = database.DB.QueryRow(query, msg.Content, msg.IsPalindrome).
 		Scan(&msg.ID, &msg.CreatedAt, &msg.UpdatedAt)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -66,7 +67,7 @@ func GetMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var msg Message
+	var msg database.Message
 
 	query := `
         SELECT id, content, is_palindrome, created_at, updated_at 
@@ -74,7 +75,7 @@ func GetMessage(w http.ResponseWriter, r *http.Request) {
 		WHERE id = $1
     `
 
-	err = DB.QueryRow(query, id).
+	err = database.DB.QueryRow(query, id).
 		Scan(&msg.ID, &msg.Content, &msg.IsPalindrome, &msg.CreatedAt, &msg.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -105,8 +106,8 @@ func UpdateMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Retrieve existing message from the database
-	var existingMsg Message
-	err = DB.QueryRow("SELECT id, content, is_palindrome, created_at, updated_at FROM messages WHERE id = $1", id).
+	var existingMsg database.Message
+	err = database.DB.QueryRow("SELECT id, content, is_palindrome, created_at, updated_at FROM messages WHERE id = $1", id).
 		Scan(&existingMsg.ID, &existingMsg.Content, &existingMsg.IsPalindrome, &existingMsg.CreatedAt, &existingMsg.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -145,7 +146,7 @@ func UpdateMessage(w http.ResponseWriter, r *http.Request) {
         RETURNING created_at, updated_at
     `
 
-	err = DB.QueryRow(query, existingMsg.Content, existingMsg.IsPalindrome, id).
+	err = database.DB.QueryRow(query, existingMsg.Content, existingMsg.IsPalindrome, id).
 		Scan(&existingMsg.CreatedAt, &existingMsg.UpdatedAt)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -167,7 +168,7 @@ func DeleteMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := DB.Exec("DELETE FROM messages WHERE id = $1", id)
+	result, err := database.DB.Exec("DELETE FROM messages WHERE id = $1", id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -237,7 +238,7 @@ func ListMessages(w http.ResponseWriter, r *http.Request) {
     `
 
 	// Execute the query
-	rows, err := DB.Query(query, limit, offset)
+	rows, err := database.DB.Query(query, limit, offset)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -245,9 +246,9 @@ func ListMessages(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 
 	// Fetch messages
-	messages := []Message{}
+	messages := []database.Message{}
 	for rows.Next() {
-		var msg Message
+		var msg database.Message
 		err := rows.Scan(&msg.ID, &msg.Content, &msg.IsPalindrome, &msg.CreatedAt, &msg.UpdatedAt)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -263,7 +264,7 @@ func ListMessages(w http.ResponseWriter, r *http.Request) {
 
 	// Count total messages.
 	var totalMessages int
-	err = DB.QueryRow("SELECT COUNT(*) FROM messages").Scan(&totalMessages)
+	err = database.DB.QueryRow("SELECT COUNT(*) FROM messages").Scan(&totalMessages)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -273,7 +274,7 @@ func ListMessages(w http.ResponseWriter, r *http.Request) {
 	totalPages := (totalMessages + limit - 1) / limit // Integer division rounding up
 
 	response := struct {
-		Messages   []Message `json:"messages"`
+		Messages   []database.Message `json:"messages"`
 		Pagination struct {
 			CurrentPage   int `json:"currentPage"`
 			PageSize      int `json:"pageSize"`

@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"bytes"
@@ -14,6 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/shawn1912/messages-service/database"
 )
 
 var testDB *sql.DB
@@ -67,7 +68,7 @@ func TestCreateMessage(t *testing.T) {
 	router.HandleFunc("/messages", CreateMessage).Methods("POST")
 
 	// Assign the test database to the global DB variable
-	DB = testDB
+	database.DB = testDB
 
 	// Call the handler
 	router.ServeHTTP(rr, req)
@@ -77,7 +78,7 @@ func TestCreateMessage(t *testing.T) {
 		t.Errorf("Expected status code %d, got %d", http.StatusCreated, status)
 	}
 
-	var respMsg Message
+	var respMsg database.Message
 	err = json.Unmarshal(rr.Body.Bytes(), &respMsg)
 	if err != nil {
 		t.Fatal(err)
@@ -119,7 +120,7 @@ func TestGetMessage(t *testing.T) {
 	router.HandleFunc("/messages/{id:[0-9]+}", GetMessage).Methods("GET")
 
 	// Assign the test database to the global DB variable
-	DB = testDB
+	database.DB = testDB
 
 	// Call the handler
 	router.ServeHTTP(rr, req)
@@ -129,7 +130,7 @@ func TestGetMessage(t *testing.T) {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, status)
 	}
 
-	var respMsg Message
+	var respMsg database.Message
 	err = json.Unmarshal(rr.Body.Bytes(), &respMsg)
 	if err != nil {
 		t.Fatal(err)
@@ -181,7 +182,7 @@ func TestListMessages(t *testing.T) {
 	router.HandleFunc("/messages", ListMessages).Methods("GET")
 
 	// Assign the test database to the global DB variable
-	DB = testDB
+	database.DB = testDB
 
 	// Call the handler
 	router.ServeHTTP(rr, req)
@@ -193,7 +194,7 @@ func TestListMessages(t *testing.T) {
 
 	// Parse the response
 	var response struct {
-		Messages   []Message `json:"messages"`
+		Messages   []database.Message `json:"messages"`
 		Pagination struct {
 			CurrentPage   int `json:"currentPage"`
 			PageSize      int `json:"pageSize"`
@@ -258,7 +259,7 @@ func TestUpdateMessage(t *testing.T) {
 	router.HandleFunc("/messages/{id:[0-9]+}", UpdateMessage).Methods("PATCH")
 
 	// Assign the test database to the global DB variable
-	DB = testDB
+	database.DB = testDB
 
 	// Call the handler
 	router.ServeHTTP(rr, req)
@@ -269,7 +270,7 @@ func TestUpdateMessage(t *testing.T) {
 	}
 
 	// Decode the response body
-	var respMsg Message
+	var respMsg database.Message
 	err = json.Unmarshal(rr.Body.Bytes(), &respMsg)
 	if err != nil {
 		t.Fatal(err)
@@ -330,7 +331,7 @@ func TestDeleteMessage(t *testing.T) {
 	router.HandleFunc("/messages/{id:[0-9]+}", DeleteMessage).Methods("DELETE")
 
 	// Assign the test database to the global DB variable
-	DB = testDB
+	database.DB = testDB
 
 	// Call the handler
 	router.ServeHTTP(rr, req)
